@@ -32,4 +32,5 @@
     * 在Wrapper里面，用私有变量保存好构造器里面创建的原生节点，以便在setAttribute中使用
     * 设置好root的getter，在appendChild的时候直接appendChild(children.root)，形成递归
     * 注意自定义组件的children需要展开,children里面还有children，需要递归
-    * 总的来说就是要包装下原生节点的生成方式，用一个Wrapper保存，这个Wrapper和自定义基类有着一样的接口、一样的展示方式、一样的属性
+    * 总的来说就是要包装下原生节点的生成方式，用一个Wrapper保存，这个Wrapper和自定义基类有着一样的接口、一样的展示方式、一样的属性。
+    然后自定义组件要实现原生组件的setAttribute, appendChild两个API，以及获取root节点的方法
