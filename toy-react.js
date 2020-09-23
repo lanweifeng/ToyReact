@@ -1,3 +1,6 @@
+
+const RENDER_TO_DOM = Symbol("render ro dom");
+
 /**
  * 包裹原生非text节点，用root保存节点，保持和自定义组件一致
  */
@@ -6,10 +9,24 @@ class ElementWrapper {
         this.root = document.createElement(nativeType);
     }
     setAttribute(name, value){
-        this.root.setAttribute(name, value)
+        if(name.match(/^on([\s\S]+)$/)){
+            this.root.addEventListener(RegExp.$1.replace(/^[\s\S]/, c => c.toLowerCase()), value)
+        }else {
+            if(name === 'className'){
+                this.root.setAttribute('class', value);
+            }
+            this.root.setAttribute(name, value)
+        }
     }
     appendChild(component){
-        this.root.appendChild(component.root);
+        let range = document.createRange();
+        range.setStart(this.root, this.root.childNodes.length);
+        range.setEnd(this.root, this.root.childNodes.length);
+        component[RENDER_TO_DOM](range);
+    }
+    [RENDER_TO_DOM](range){
+        range.deleteContents();
+        range.insertNode(this.root);
     }
 }
 
@@ -19,6 +36,10 @@ class ElementWrapper {
 class TextWrapper {
     constructor(content){
         this.root = document.createTextNode(content)
+    }
+    [RENDER_TO_DOM](range){
+        range.deleteContents();
+        range.insertNode(this.root);
     }
 }
 
@@ -30,6 +51,7 @@ export class MyBaseComponent {
         this.props = Object.create(null);
         this.children = [];
         this._root = null;
+        this._range = null;
     }
     setAttribute(name, value){
         this.props[name] = value
@@ -37,12 +59,40 @@ export class MyBaseComponent {
     appendChild(component){
         this.children.push(component)
     }
+    [RENDER_TO_DOM](range){
+        this._range = range;
+        this.render()[RENDER_TO_DOM](range)
+    }
 
-    get root(){
-        if(!this._root){
-            this._root = this.render().root;
+    reRender(){
+        const oldRange = this._range;
+
+        let range = document.createRange();
+        range.setStart(oldRange.startContainer, oldRange.startOffset);
+        range.setEnd(oldRange.startContainer, oldRange.startOffset);
+        this[RENDER_TO_DOM](range);
+
+        oldRange.setStart(range.endContainer, range.endOffset)
+        oldRange.deleteContents();
+    }
+
+    setState(newState){
+        if(this.state === null || typeof this.state !== 'object'){
+            this.state = _newState;
+            this.reRender();
+            return;
         }
-        return this._root;
+        const merge = (oldState, _newState) => {
+            for(let i in _newState){
+                if(typeof oldState[i] !== 'object' || oldState[i] === null){
+                    oldState[i] = _newState[i]
+                }else {
+                    merge(oldState[i], _newState[i])
+                }
+            }
+        }
+        merge(this.state, newState);
+        this.reRender();
     }
 }
 
@@ -61,6 +111,9 @@ export const createMyReact = (nodeName, nodeAttrbutes, ...nodeChildren) => {
             if(typeof child === 'string'){
                 child = new TextWrapper(child);
             }
+            if(child === null){
+                continue;
+            }
             if((typeof child === 'object') && (child instanceof Array)){
                 insertChildren(child)
             }else {
@@ -74,5 +127,9 @@ export const createMyReact = (nodeName, nodeAttrbutes, ...nodeChildren) => {
 }
 
 export function render(component, parentElement) {
-    parentElement.appendChild(component.root);
+    let range = document.createRange();
+    range.setStart(parentElement, 0);
+    range.setEnd(parentElement, parentElement.childNodes.length);
+    range.deleteContents();
+    component[RENDER_TO_DOM](range)
 }

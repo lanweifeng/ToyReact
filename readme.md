@@ -1,5 +1,6 @@
 #toyReact
 
+#   day1
 * 安装环境
     * webpack 打包工具
     * webpack-cli webpack命令行工具
@@ -34,3 +35,21 @@
     * 注意自定义组件的children需要展开,children里面还有children，需要递归
     * 总的来说就是要包装下原生节点的生成方式，用一个Wrapper保存，这个Wrapper和自定义基类有着一样的接口、一样的展示方式、一样的属性。
     然后自定义组件要实现原生组件的setAttribute, appendChild两个API，以及获取root节点的方法
+
+#   day2
+*   目标
+    * 节点可更新
+    * 自定义组件有生命周期
+    
+*   思路
+    * 改造渲染方式，使用一个渲染函数来更新root保存的DOM
+    
+*   步骤
+    * 实现一个私有函数renderToDOM来代替root的赋值
+    * 保证wrapper和自定义组件都有renderToDOM，以便形成递归，最终递归到原生组件的renderToDOM，
+    原生组件的renderToDOM就是把root的值放到range（range.insertNode）,注意先清空原range的内容
+    * **(重要)改造wrapper的appendChild，之前是直接this.root.appendChild(component.root)形成递归，现在
+    需要使用range,先创建一个起点为该节点末尾的range,把这个range往下传（component），由子节点的renderToDOM
+    来负责把自己挂在父节点上。**
+    * 实现setState需要深拷贝新旧状态，拷贝完成后需要再次render
+    * 注意在reRender时候，不能先删除原来的Range内容，需要在原来的Range前面insert新内容，再删除，避免出现Null节点导致Range宽度不对
